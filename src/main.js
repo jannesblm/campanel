@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
@@ -8,29 +8,42 @@ import './assets/main.css'
 
 import * as mqtt from 'mqtt/dist/mqtt'
 import { useImageStore } from './stores/image'
+import { useAuthStore } from './stores/auth'
 
-let client = mqtt.connect("ws://localhost:9001")
+const app = createApp(App)
+app.use(createPinia())
+app.config.globalProperties.$mqtt = mqtt;
+app.use(router)
+app.mount('#app')
 
-client.on('connect', function () {
-    client.subscribe('cam/image', function (err) {
-        if (!err) {
-            
+const authStore = useAuthStore()
+const imageStore = useImageStore()
+
+watch(() => authStore.client, (client, old) => {
+    if (client === null) {
+        old.end()
+        return
+    }
+       
+    client.on('connect', function () {
+        authStore.setAuthenticated(true)
+        client.subscribe('cam/#');
+    });
+
+    client.on('error', function (error) {
+        client.end()
+        authStore.setIsErrored(true)
+        alert(error)
+    })
+
+    client.on('message', function (topic, message) {
+        if (topic === 'cam/image') {
+            imageStore.update(message)
         }
     })
 })
-  
-client.on('message', function (topic, message) {
-    const store = useImageStore();
 
-    //console.log(topic, message.toString());
+if (authStore.username !== '' && authStore.password !== '') {
+    authStore.login()
+}
 
-    if (topic === 'cam/image') {
-        store.update(message);
-    }
-})
-
-const app = createApp(App)
-
-app.use(createPinia())
-app.use(router)
-app.mount('#app')
