@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "circular-buffer": "^1.0.3",
     "daisyui": "^2.47.0",
     "lodash.debounce": "^4.0.8",
     "mqtt": "^4.3.7",

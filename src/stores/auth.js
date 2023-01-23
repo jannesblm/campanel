@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', {
             this.isErrored = false;
 
             this.setClient(
-                mqtt.connect("ws://localhost:9001", {
+                mqtt.connect("wss://mqtt.verybig.cloud", {
                     username: this.username,
                     password: this.password
                 })

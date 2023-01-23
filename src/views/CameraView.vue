@@ -1,5 +1,5 @@
 <script setup>
-import { watch, ref } from 'vue';
+import { watch, ref, computed, toRaw } from 'vue';
 import { useImageStore } from '../stores/image'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
@@ -10,28 +10,33 @@ import wav from '../assets/ding.wav'
 import camera from '../assets/camera.png'
 import MyCanvas from '../components/MyCanvas.vue';
 
-const imageStore = useImageStore();
-const settingsStore = useSettingsStore();
-const authStore = useAuthStore();
-const audio = new Audio(wav);
-const beep = ref(true);
-
+const imageStore = useImageStore()
+const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
+const audio = new Audio(wav)
+const doBeep = ref(true)
+const showModal = ref(false)
+const modalData = ref(new Uint8Array)
+const modelDate = ref(new Date())
 
 watch(() => imageStore.image, (image) => {
-  imageStore.history.push(image)
+  imageStore.history.enq({
+    image: image,
+    time: new Date(),
+  })
 
-  if (imageStore.history.length > 10) {
-    imageStore.history.splice(-1)
-  }
-
-  if (beep.value) {
+  if (doBeep.value) {
     audio.play();
   }
 })
 
-watch(() => imageStore.history, (history) => {
+function showDetail(item) {
+  item = toRaw(item);
 
-})
+  modalData.value = item.image;
+  modelDate.value = item.time;
+  showModal.value = true;
+}
 
 const updateSensitivity = debounce((newValue) => {
   settingsStore.updateSensitivity(newValue);
@@ -55,10 +60,8 @@ const updateDelay = debounce((newValue) => {
   <div class="drawer drawer-mobile">
     <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
     <div class="drawer-content flex flex-col items-center">
-
       <div class="mb-4 relative">
-        <MyCanvas :data="imageStore.image"></MyCanvas>
-        <!-- <canvas ref="myCanvas" width="512" height="288" class="rounded-md"></canvas> -->
+        <MyCanvas :data="imageStore.image" width="512" height="288"></MyCanvas>
         <div v-if="imageStore.image.length === 0"
           class="absolute height-100 width-100 inset-0 flex items-center justify-center flex-col bg-stone-900 rounded-md">
           <img :src="camera" alt="Camera icon" />
@@ -68,7 +71,7 @@ const updateDelay = debounce((newValue) => {
       <div>
         <div class="block flex justify-end">
           <label class="label-text mr-2">Play sound</label>
-          <input type="checkbox" v-model="beep" class="checkbox checkbox-primary" />
+          <input type="checkbox" v-model="doBeep" class="checkbox checkbox-primary" />
         </div>
         <label>sensitivity: {{ settingsStore.sensitivity }}</label>
         <input type="range" class="range range-primary range-xs" v-model="settingsStore.sensitivity"
@@ -77,18 +80,27 @@ const updateDelay = debounce((newValue) => {
         <input type="range" class="range range-primary range-xs" v-model="settingsStore.delay"
           @input="updateDelay($event.target.value)" min="1" max="20" />
       </div>
-
       <label for="my-drawer-2" class="btn btn-primary drawer-button lg:hidden">Open drawer</label>
-
     </div>
     <div class="drawer-side">
       <label for="my-drawer-2" class="drawer-overlay"></label>
       <ul class="menu p-4 w-80 bg-base-100 text-base-content">
-        <li v-for="(item, index) in imageStore.history">
-          <MyCanvas :data="item"/>
+        <li v-for="(item, index) in imageStore.historyArray">
+          <MyCanvas :data="item.image" class="w-auto" @click="showDetail(item)"/>
         </li>
       </ul>
+    </div>
+  </div>
 
+  <input type="checkbox" v-model="showModal" class="modal-toggle" />
+  <div class="modal">
+    <div class="modal-box w-11/12 max-w-5xl">
+      <h3 class="font-bold text-lg">Snapshot</h3>
+      <p class="my-4">{{ modelDate.toString() }}</p>
+      <MyCanvas :data="modalData" width="512" height="288" class="w-full"/>
+      <div class="modal-action">
+        <label for="my-modal-5" class="btn" @click="showModal = false">Close</label>
+      </div>
     </div>
   </div>
 </template>
